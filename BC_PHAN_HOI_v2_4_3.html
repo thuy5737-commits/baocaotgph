@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo cáo thời gian phản hồi tin nhắn</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#fff;font-family:'Inter',sans-serif;font-size:13px;color:#1a1a1a;}
+
+/* ── TOP BAR ── */
+.topbar{height:40px;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 16px;gap:12px;background:#fff;}
+.topbar-back{font-size:12px;color:#555;cursor:pointer;display:flex;align-items:center;gap:4px;}
+.topbar-title{font-size:13px;font-weight:600;color:#111;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.topbar-right span{font-size:12px;color:#888;cursor:pointer;}
+.topbar-right span:hover{color:#E05A00;}
+
+/* ── FILTER BAR ── */
+.filterbar{border-bottom:1px solid #ebebeb;padding:7px 16px;display:flex;align-items:center;gap:10px;background:#fff;flex-wrap:wrap;}
+.fl{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+.fi,.fsel{border:1px solid #d5d5d5;border-radius:3px;padding:3px 8px;font-size:12px;font-family:'Inter',sans-serif;color:#222;background:#fff;height:28px;outline:none;}
+.fi:focus,.fsel:focus{border-color:#E05A00;}
+.fsel{padding-right:24px;appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23aaa'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;}
+.fsep{width:1px;height:18px;background:#e0e0e0;flex-shrink:0;}
+.btn-apply{background:#E05A00;color:#fff;border:none;border-radius:3px;padding:0 14px;height:28px;font-size:12px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap;}
+.btn-apply:hover{background:#c24e00;}
+.btn-refresh{background:none;border:none;font-size:12px;color:#888;cursor:pointer;font-family:'Inter',sans-serif;}
+.btn-refresh:hover{color:#E05A00;}
+
+/* ── KPI ROW ── */
+.kpi-row{display:grid;grid-template-columns:repeat(9,1fr);border-bottom:1px solid #ebebeb;}
+.kpi-cell{padding:18px 20px;border-right:1px solid #ebebeb;}
+.kpi-cell:last-child{border-right:none;}
+.kpi-lbl{font-size:11px;color:#888;margin-bottom:8px;line-height:1.3;}
+.kpi-num{font-size:36px;font-weight:800;color:#E05A00;line-height:1;letter-spacing:-1.5px;}
+.kpi-num.dark{color:#222;}
+.kpi-sub{font-size:10px;color:#bbb;margin-top:5px;}
+
+/* ── CHART ROW ── */
+.chart-row{display:grid;grid-template-columns:1fr;border-bottom:1px solid #ebebeb;}
+.chart-box{padding:12px 16px;}
+
+.cbox-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.cbox-title{font-size:12px;color:#444;}
+.cbox-meta{font-size:10px;color:#bbb;display:flex;align-items:center;gap:10px;}
+.leg{display:flex;align-items:center;gap:4px;font-size:10px;color:#888;}
+.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.cbox-wrap{height:220px;}
+
+/* ── TABLE SECTION ── */
+.tbl-tabs{display:flex;border-bottom:1px solid #ebebeb;padding:0 16px;}
+.ttab{padding:9px 0;margin-right:18px;font-size:12px;color:#aaa;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.ttab.on{color:#E05A00;border-bottom-color:#E05A00;font-weight:500;}
+.ttab:hover:not(.on){color:#555;}
+
+table{width:100%;border-collapse:collapse;}
+thead th{
+  background:#fff;
+  padding:8px 12px;
+  text-align:left;
+  font-size:11px;
+  font-weight:400;
+  color:#bbb;
+  border-bottom:1px solid #ede8e0;
+  white-space:nowrap;
+}
+thead th.r{text-align:right;}
+thead th.c{text-align:center;}
+tbody td{
+  padding:9px 12px;
+  font-size:12px;
+  color:#222;
+  vertical-align:middle;
+  border:none;
+}
+tbody tr:nth-child(odd) td{background:#fff;}
+tbody tr:nth-child(even) td{background:#faf8f5;}
+tbody tr:hover td{background:#f5f0e8;}
+tbody td.r{text-align:right;font-variant-numeric:tabular-nums;}
+tbody td.c{text-align:center;}
+tbody td.td-day{color:#1d52d9;font-size:12px;}
+tbody tr.trow-total td{
+  font-weight:700;
+  background:#ede8e0;
+  border-top:1px solid #ddd6c8;
+  border-bottom:none;
+  color:#111;
+  font-size:12px;
+}
+tbody tr.trow-total td.r{color:#111;}
+
+.sale-avt{
+  width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:#fff;
+  flex-shrink:0;margin-right:7px;vertical-align:middle;
+}
+
+/* pager */
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:3px;padding:8px 14px;border-top:1px solid #f0f0f0;}
+.pager-info{font-size:11px;color:#aaa;margin-right:6px;}
+.pg{min-width:24px;height:24px;border:1px solid #e0e0e0;border-radius:2px;font-size:11px;cursor:pointer;background:#fff;color:#555;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;}
+.pg.on{background:#E05A00;color:#fff;border-color:#E05A00;}
+.pg:hover:not(.on){border-color:#E05A00;color:#E05A00;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-back">← Báo cáo thời gian phản hồi tin nhắn</div>
+  <div style="flex:1;display:flex;align-items:center;gap:10px;" class="filterbar" style="border:none;padding:0;">
+    <span class="fl">Thời gian</span>
+    <input type="date" class="fi" value="2026-05-01" id="dt-from">
+    <span style="font-size:11px;color:#aaa;">→</span>
+    <input type="date" class="fi" value="2026-05-31" id="dt-to">
+    <div class="fsep"></div>
+    <span class="fl">Page</span>
+    <select class="fsel" style="width:280px" id="sel-kenh">
+      <option value="all">Tất cả</option>
+      <option value="hsa1">HSA Education - ĐGNL HSA - VNU</option>
+      <option value="hsa2">Luyện thi Công an - Quân đội HSA</option>
+    </select>
+    <span class="fl">Sale</span>
+    <select class="fsel" style="width:140px" id="sel-sale">
+      <option value="all">Tất cả</option>
+      <option value="0">Nguyễn Lan Anh</option>
+      <option value="1">Trần Minh Tú</option>
+      <option value="2">Phạm Thu Hà</option>
+      <option value="3">Lê Quốc Bảo</option>
+    </select>
+    <button class="btn-apply" onclick="applyFilter()">Cập nhật</button>
+  </div>
+  <div class="topbar-right">
+    <span onclick="applyFilter()">🔄 Làm mới tất cả</span>
+    <span>✏️ Edit</span>
+  </div>
+</div>
+
+<!-- KPI -->
+<div class="kpi-row">
+  <div class="kpi-cell">
+    <div class="kpi-lbl">Tổng khách hàng</div>
+    <div class="kpi-num" id="kv0">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">Khách đã được tư vấn</div>
+    <div class="kpi-num" id="kv3">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">KH chưa tư vấn</div>
+    <div class="kpi-num" id="kv3b">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">Lượt chưa phản hồi</div>
+    <div class="kpi-num" id="kv8">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">TGPH trung bình</div>
+    <div class="kpi-num" id="kv1">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">Tỷ lệ phản hồi KH</div>
+    <div class="kpi-num" id="kv7">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">Lượt rep chậm &gt; 60 phút</div>
+    <div class="kpi-num" id="kv4">–</div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-lbl">Lượt rep nhanh ≤ 15 phút</div>
+    <div class="kpi-num" id="kv5">–</div>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="chart-row">
+  <div class="chart-box">
+    <div class="cbox-hdr">
+      <span class="cbox-title">TGPH theo ngày</span>
+      <div class="cbox-meta"><span style="color:#bbb;cursor:pointer;">⋮</span></div>
+    </div>
+    <div class="cbox-wrap"><canvas id="c1"></canvas></div>
+  </div>
+</div>
+
+<!-- TABLE SALE -->
+<div>
+  <div class="tbl-tabs" style="border-bottom:1px solid #ebebeb;">
+    <div class="ttab on" style="cursor:default;">Bảng tài khoản</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table><thead id="th"></thead><tbody id="tb"></tbody></table>
+  </div>
+  <div class="pager">
+    <span class="pager-info" id="pg-info"></span>
+    <button class="pg">‹</button>
+    <button class="pg on">1</button>
+    <button class="pg">2</button>
+    <button class="pg">3</button>
+    <button class="pg">4</button>
+    <button class="pg">›</button>
+  </div>
+</div>
+
+<!-- TABLE PAGE -->
+<div style="border-top:6px solid #f5f5f5;">
+  <div class="tbl-tabs" style="border-bottom:1px solid #ebebeb;">
+    <div class="ttab on" style="cursor:default;">Theo Page</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table><thead id="th-kenh"></thead><tbody id="tb-kenh"></tbody></table>
+  </div>
+</div>
+
+<script>
+var SALES=[
+  // totalHT=tổng lượt phát sinh; ghiNhan=KH đã được tư vấn; luotDaPH=lượt đã PH; role=vai trò tài khoản
+  {name:'Nguyễn Lan Anh',role:'Sale',kenh:'ĐGNL VNU',  color:'#7c3aed',totalHT:2247,ghiNhan:1631,luotDaPH:1987,avg1:8, totalMinutes:15896,fast:81,slow:15,sdt:78,sdtCount:1437,tiers:{t1:381,t2:596,t3:716,t4:239,t5:27,t6:28}},
+  {name:'Trần Minh Tú',  role:'Sale',kenh:'ĐGNL VNU',  color:'#0ea5e9',totalHT:1891,ghiNhan:1318,luotDaPH:1612,avg1:13,totalMinutes:20956,fast:67,slow:41,sdt:65,sdtCount:1023,tiers:{t1:242,t2:457,t3:601,t4:267,t5:44,t6:1}},
+  {name:'Phạm Thu Hà',   role:'Admin',kenh:'Công an QĐ',color:'#f59e0b',totalHT:1534,ghiNhan:1047,luotDaPH:1261,avg1:22,totalMinutes:27742,fast:48,slow:81,sdt:51,sdtCount:658, tiers:{t1:151,t2:351,t3:478,t4:217,t5:3,t6:61}},
+  {name:'Lê Quốc Bảo',  role:'Sale',kenh:'Công an QĐ',color:'#ef4444',totalHT:2089,ghiNhan:1421,luotDaPH:1748,avg1:31,totalMinutes:54188,fast:39,slow:126,sdt:44,sdtCount:741, tiers:{t1:109,t2:262,t3:596,t4:646,t5:6,t6:129}},
+];
+var KENH=[
+  // totalHT=tổng lượt kênh (Case 22: 1 KH đa kênh = nhiều lượt); ghiNhan=lượt đã reply; chuaPH=lượt timeout chưa reply
+  {name:'HSA Education - Chuyên luyện thi ĐGNL HSA - VNU',               icon:'📘',color:'#1d52d9',totalHT:4138,ghiNhan:3599,chuaPH:539,avg1:11,fast:74,slow:56, sdt:72,sdtCount:2979},
+  {name:'Luyện thi đánh giá các trường Công an - Quân đội HSA Education', icon:'🎖️',color:'#7c3aed',totalHT:3623,ghiNhan:3009,chuaPH:614,avg1:27,fast:43,slow:196,sdt:47,sdtCount:1703},
+];
+var TOTAL_KH_UNIQUE    = 6389; // Tổng KH unique nhắn tin trong kỳ
+var TOTAL_KH_DA_TU_VAN = 5417; // KH unique đã nhận reply từ ít nhất 1 người (deduped)
+var TOTAL_KH_CHUA_TV   = 972;  // KH unique nhắn vào nhưng chưa có ai reply
+var DAYS=['01/05','02/05','03/05','04/05','05/05','06/05','07/05','08/05','09/05','10/05','11/05','12/05','13/05','14/05'];
+var BASE={
+  avg: [14,11,18,24,9,16,21,13,8,19,15,26,10,14],
+  ht:  [312,287,341,218,389,304,261,328,412,291,356,241,418,307],
+  slow:[18,14,31,42,8,23,38,12,6,29,21,47,9,18],
+  noreply:[24,19,38,51,12,29,44,17,9,35,28,54,14,22],
+};
+
+function renderKPI(d){
+  var isFullData = (d.length === SALES.length);
+
+  // TGPH weighted average: tổng phút / tổng lượt đã PH
+  var totalMin      = d.reduce(function(a,r){return a+(r.totalMinutes||r.avg1*(r.luotDaPH||r.ghiNhan));},0);
+  var totalLuotDaPH = d.reduce(function(a,r){return a+(r.luotDaPH||r.ghiNhan);},0);
+  var avg = totalLuotDaPH>0 ? Math.round(totalMin/totalLuotDaPH) : 0;
+
+  // Lượt chưa PH (từ bảng kênh — đây là nguồn đúng vì kênh có field chuaPH riêng)
+  var luotChuaPH = KENH.reduce(function(a,c){return a+(c.chuaPH||0);},0);
+
+  // Lượt rep chậm >60ph: sum tiers.t6 từ SALES
+  var sl = d.reduce(function(a,r){return a+(r.tiers?r.tiers.t6:0);},0);
+
+  // Lượt rep nhanh ≤15ph (tiers t1+t2+t3+t4)
+  var totalFast = d.reduce(function(a,r){
+    return a+(r.tiers?(r.tiers.t1+r.tiers.t2+r.tiers.t3+r.tiers.t4):Math.round((r.luotDaPH||r.ghiNhan)*r.fast/100));
+  },0);
+  var fa = totalLuotDaPH>0 ? Math.round(totalFast/totalLuotDaPH*100) : 0;
+
+  // KH unique — dùng TOTAL constants khi full data, scale tỷ lệ khi lọc
+  var ratio = isFullData ? 1 : totalLuotDaPH / (SALES.reduce(function(a,r){return a+(r.luotDaPH||r.ghiNhan);},0)||1);
+  var totalKh  = isFullData ? TOTAL_KH_UNIQUE    : Math.round(TOTAL_KH_UNIQUE*ratio);
+  var khDaTuVan= isFullData ? TOTAL_KH_DA_TU_VAN : Math.round(TOTAL_KH_DA_TU_VAN*ratio);
+  var khChuaTV = isFullData ? TOTAL_KH_CHUA_TV   : Math.round(TOTAL_KH_CHUA_TV*ratio);
+
+  // Tỷ lệ phản hồi KH = KH đã tư vấn / Tổng KH unique
+  var tlPH = totalKh>0 ? Math.round(khDaTuVan/totalKh*100) : 0;
+
+  document.getElementById('kv0').textContent  = totalKh.toLocaleString('vi-VN');
+  document.getElementById('kv1').textContent  = avg+' ph';
+  document.getElementById('kv3').textContent  = khDaTuVan.toLocaleString('vi-VN');
+  document.getElementById('kv3b').textContent = khChuaTV.toLocaleString('vi-VN');
+  document.getElementById('kv4').textContent  = sl.toLocaleString('vi-VN');
+  document.getElementById('kv5').textContent  = fa+'%';
+  document.getElementById('kv7').textContent  = tlPH+'%';
+  document.getElementById('kv8').textContent  = luotChuaPH.toLocaleString('vi-VN');
+}
+
+var chartOpts=function(y2){return{
+  responsive:true,maintainAspectRatio:false,
+  interaction:{mode:'index',intersect:false},
+  plugins:{
+        legend:{display:true,position:'top',align:'end',
+          labels:{usePointStyle:true,pointStyle:'circle',boxWidth:7,boxHeight:7,padding:10,font:{family:'Inter',size:10},color:'#888'}},
+        tooltip:{
+          backgroundColor:'#fff',borderColor:'#e0e0e0',borderWidth:1,
+          titleColor:'#222',bodyColor:'#555',
+          titleFont:{family:'Inter',size:11,weight:'600'},
+          bodyFont:{family:'Inter',size:11},padding:10,
+          callbacks:{
+            title:function(i){return 'Ngày '+i[0].label;},
+            label:function(c){
+              if(c.datasetIndex===0)return ' TGPH TB: '+c.parsed.y+' phút';
+              if(c.datasetIndex===1)return ' KH đã PH: '+c.parsed.y.toLocaleString('vi-VN')+' KH';
+              if(c.datasetIndex===2)return ' Lượt rep chậm >60ph: '+c.parsed.y+' lượt';
+              return ' KH chưa PH: '+c.parsed.y+' KH';
+            }
+          }
+        }},
+  scales:{
+    x:{grid:{color:'#f5f5f5'},ticks:{font:{family:'Inter',size:10},color:'#ccc',maxRotation:0}},
+    y:{position:'left',grid:{color:'#f5f5f5'},ticks:{font:{family:'Inter',size:10},color:'#ccc'},
+       title:{display:true,text:'Phút',color:'#ccc',font:{size:10}}},
+    ...(y2?{y2:{position:'right',grid:{display:false},ticks:{font:{family:'Inter',size:10},color:'#ccc'},
+              title:{display:true,text:'Số HT',color:'#ccc',font:{size:10}}}}:{}),
+  }
+};};
+
+function buildCharts(){
+  // Line chart
+  window._chart1=new Chart(document.getElementById('c1').getContext('2d'),{
+    type:'line',
+    data:{labels:DAYS,datasets:[
+      {label:'TGPH TB (ph)',data:BASE.avg,borderColor:'#E05A00',backgroundColor:'rgba(224,90,0,.05)',tension:.4,borderWidth:2,pointRadius:2,pointHoverRadius:4,yAxisID:'y'},
+      {label:'KH đã PH',data:BASE.ht,borderColor:'#1d52d9',backgroundColor:'rgba(29,82,217,.04)',tension:.3,borderWidth:1.5,pointRadius:2,yAxisID:'y2'},
+      {label:'Lượt rep chậm >60ph',data:BASE.slow,borderColor:'#cf1322',backgroundColor:'rgba(207,19,34,.04)',tension:.3,borderWidth:1.5,pointRadius:2,yAxisID:'y2'},
+      {label:'KH chưa PH',data:BASE.noreply,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.04)',tension:.3,borderWidth:1.5,pointRadius:2,borderDash:[4,3],yAxisID:'y2'},
+    ]},
+    options:chartOpts(true),
+  });
+}
+
+function renderSaleTable(d){
+  document.getElementById('th').innerHTML='<tr>'
+    +'<th style="min-width:200px">Tài khoản</th>'
+    +'<th class="r">Vai trò</th>'
+    +'<th class="r" title="Số KH đã nhắn tin và có bất kỳ ai reply — ghi nhận theo ngày KH nhắn lần đầu">KH đã tư vấn</th>'
+    +'<th class="r" title="Tổng lượt tin nhắn đã được tài khoản này phản hồi trong kỳ">Lượt đã phản hồi</th>'
+    +'<th class="r">TGPH TB (ph)</th>'
+    +'<th class="r">&lt; 30s</th>'
+    +'<th class="r">30s – 1ph</th>'
+    +'<th class="r">1 – 2ph</th>'
+    +'<th class="r">2 – 15ph</th>'
+    +'<th class="r">15 – 60ph</th>'
+    +'<th class="r">&gt; 60ph</th>'
+    +'</tr>';
+  var rows='',totGN=0,totHT=0,sumA=0,sumSD=0;
+  // Mẫu số = Tổng HT toàn hệ thống trong phạm vi lọc hiện tại
+  // (khi filter theo page: mẫu số = tổng HT của các Sale trong page đó)
+  var totalHTToanHeThong = d.reduce(function(a,r){return a+r.totalHT;},0);
+  d.forEach(function(s){
+    var init=s.name.split(' ').pop()[0];
+    totGN+=s.ghiNhan;totHT+=s.totalHT;sumA+=s.avg1;sumSD+=s.sdt;
+    var luotDaPH_s = s.luotDaPH || s.ghiNhan;
+    var chuaTuVan_s = s.totalHT - s.ghiNhan;
+    var roleLabel = s.role||'Sale';
+    rows+='<tr>'
+      +'<td><span class="sale-avt" style="background:'+s.color+'">'+init+'</span>'+s.name+'</td>'
+      +'<td class="r"><span style="font-size:11px;color:#666">'+roleLabel+'</span></td>'
+      +'<td class="r">'+s.ghiNhan.toLocaleString('vi-VN')+'</td>'
+      +'<td class="r">'+luotDaPH_s.toLocaleString('vi-VN')+'</td>'
+      +'<td class="r">'+s.avg1+'</td>'
+      +'<td class="r">'+s.tiers.t1+'</td>'
+      +'<td class="r">'+s.tiers.t2+'</td>'
+      +'<td class="r">'+s.tiers.t3+'</td>'
+      +'<td class="r">'+s.tiers.t4+'</td>'
+      +'<td class="r">'+(s.tiers.t5||0)+'</td>'
+      +'<td class="r">'+s.tiers.t6+'</td>'
+
+      +'</tr>';
+  });
+  var n=d.length;
+  // Weighted average cho TGPH TB toàn bộ Sale đang lọc
+  var totLuotDaPH = d.reduce(function(a,s){return a+(s.luotDaPH||s.ghiNhan);},0);
+  var wAvg = totLuotDaPH>0 ? Math.round(d.reduce(function(a,s){return a+(s.totalMinutes||s.avg1*(s.luotDaPH||s.ghiNhan));},0)/totLuotDaPH) : 0;
+  rows+='<tr class="trow-total">'
+    +'<td>Tổng / Trung bình</td>'
+    +'<td class="r">—</td>'
+    +'<td class="r">'+totGN.toLocaleString('vi-VN')+'</td>'
+    +'<td class="r">'+totLuotDaPH.toLocaleString('vi-VN')+'</td>'
+    +'<td class="r">'+wAvg+'</td>'
+    +'<td class="r">'+Math.round(d.reduce(function(a,s){return a+s.tiers.t1;},0)/totLuotDaPH*100)+'%</td>'
+    +'<td class="r">'+Math.round(d.reduce(function(a,s){return a+s.tiers.t2;},0)/totLuotDaPH*100)+'%</td>'
+    +'<td class="r">'+Math.round(d.reduce(function(a,s){return a+s.tiers.t3;},0)/totLuotDaPH*100)+'%</td>'
+    +'<td class="r">'+Math.round(d.reduce(function(a,s){return a+s.tiers.t4;},0)/totLuotDaPH*100)+'%</td>'
+    +'<td class="r">'+Math.round(d.reduce(function(a,s){return a+(s.tiers.t5||0);},0)/totLuotDaPH*100)+'%</td>'
+    +'<td class="r">'+Math.round(d.reduce(function(a,s){return a+s.tiers.t6;},0)/totLuotDaPH*100)+'%</td>'
+
+    +'</tr>';
+  document.getElementById('tb').innerHTML=rows;
+  document.getElementById('pg-info').textContent='165 rows';
+}
+
+function renderKenhTable(d){
+  document.getElementById('th-kenh').innerHTML='<tr>'
+    +'<th>Page</th>'
+    +'<th class="r" title="Tổng lượt tương tác phát sinh trên page (1 KH đa page = nhiều lượt)">Tổng lượt</th>'
+    +'<th class="r" title="Lượt đã có sale public reply">Lượt đã PH</th>'
+    +'<th class="r" title="Lượt timeout chưa có ai reply trong ca — đóng tự động cuối ca">Lượt chưa PH</th>'
+    +'<th class="r">TGPH TB (ph)</th>'
+    +'<th class="r">Rep ≤ 15ph</th>'
+    +'<th class="r">Rep &gt; 60ph</th>'
+
+    +'</tr>';
+  var rows='',totHT=0,sumA=0,sumF=0,sumSD=0,totSl=0;
+  d.forEach(function(c){
+    totHT+=c.totalHT;sumF+=c.fast;totSl+=c.slow||0;
+    rows+='<tr>'
+      +'<td>'+c.icon+' '+c.name+'</td>'
+      +'<td class="r">'+c.totalHT.toLocaleString('vi-VN')+'</td>'
+      +'<td class="r">'+(c.ghiNhan||0).toLocaleString('vi-VN')+'</td>'
+      +'<td class="r">'+(c.chuaPH||c.totalHT-(c.ghiNhan||0)).toLocaleString('vi-VN')+'</td>'
+      +'<td class="r">'+c.avg1+'</td>'
+      +'<td class="r">'+c.fast+'%</td>'
+      +'<td class="r">'+(c.slow||0)+'</td>'
+
+      +'</tr>';
+  });
+  var n=d.length;
+  var totGN_k = d.reduce(function(a,c){return a+c.ghiNhan;},0);
+  // Weighted average TGPH kênh
+  var wAvgK = Math.round(d.reduce(function(a,c){return a+c.avg1*c.ghiNhan;},0)/totGN_k);
+  // Weighted % rep nhanh
+  var wFastK = Math.round(d.reduce(function(a,c){return a+Math.round(c.ghiNhan*c.fast/100);},0)/totGN_k*100);
+  
+  var totChuaPH_k = d.reduce(function(a,c){return a+(c.chuaPH||c.totalHT-(c.ghiNhan||0));},0);
+  rows+='<tr class="trow-total">'
+    +'<td>Tổng / Trung bình</td>'
+    +'<td class="r">'+totHT.toLocaleString('vi-VN')+'</td>'
+    +'<td class="r">'+totGN_k.toLocaleString('vi-VN')+'</td>'
+    +'<td class="r">'+totChuaPH_k.toLocaleString('vi-VN')+'</td>'
+    +'<td class="r">'+wAvgK+'</td>'
+    +'<td class="r">'+wFastK+'%</td>'
+    +'<td class="r">'+totSl+'</td>'
+    +'</tr>';
+  document.getElementById('tb-kenh').innerHTML=rows;
+}
+
+function scaleSales(base, ratio){
+  // Scale data theo tỷ lệ ngày được chọn so với toàn tháng (14 ngày)
+  if(ratio>=1) return base;
+  return base.map(function(s){
+    var r = ratio;
+    var gn  = Math.round(s.ghiNhan*r);
+    var ht  = Math.round(s.totalHT*r);
+    var ldp = Math.round((s.luotDaPH||s.ghiNhan)*r);
+    var tm  = Math.round((s.totalMinutes||s.avg1*s.ghiNhan)*r);
+    var sc  = s.sdtCount ? Math.round(s.sdtCount*r) : 0;
+    return Object.assign({},s,{
+      ghiNhan:gn, totalHT:ht, luotDaPH:ldp, totalMinutes:tm, sdtCount:sc,
+      tiers:{
+        t1:Math.round(s.tiers.t1*r), t2:Math.round(s.tiers.t2*r),
+        t3:Math.round(s.tiers.t3*r), t4:Math.round(s.tiers.t4*r),
+        t5:Math.round((s.tiers.t5||0)*r), t6:Math.round(s.tiers.t6*r)
+      }
+    });
+  });
+}
+
+function scaleKenh(base, ratio){
+  if(ratio>=1) return base;
+  return base.map(function(c){
+    return Object.assign({},c,{
+      totalHT:Math.round(c.totalHT*ratio),
+      ghiNhan:Math.round(c.ghiNhan*ratio),
+      chuaPH:Math.round((c.chuaPH||(c.totalHT-c.ghiNhan))*ratio),
+    });
+  });
+}
+
+function parseDayIndex(str){
+  // str = 'YYYY-MM-DD', tháng 5/2026 có 31 ngày (ngày 1–31)
+  if(!str) return -1;
+  var d = parseInt(str.split('-')[2]);
+  return isNaN(d) ? -1 : d;
+}
+
+function applyFilter(){
+  var sv = document.getElementById('sel-sale').value;
+  var kv = document.getElementById('sel-kenh').value;
+  var fromStr = document.getElementById('dt-from').value;
+  var toStr   = document.getElementById('dt-to').value;
+
+  // Tính số ngày được chọn / tổng tháng (31 ngày tháng 5)
+  var d1 = parseDayIndex(fromStr)||1;
+  var d2 = parseDayIndex(toStr)||31;
+  if(d2<d1) d2=d1;
+  var daysSelected = d2 - d1 + 1;
+  var ratio = Math.min(1, daysSelected/31);
+
+  // Sale filter
+  var sd = sv!=='all' ? [SALES[parseInt(sv)]] : SALES;
+  var kd = KENH;
+  if(kv==='hsa1'){sd=SALES.filter(function(s){return s.kenh.indexOf('ĐGNL')>=0;});kd=[KENH[0]];}
+  if(kv==='hsa2'){sd=SALES.filter(function(s){return s.kenh.indexOf('Công an')>=0;});kd=[KENH[1]];}
+
+  // Scale theo ngày
+  var sdScaled = scaleSales(sd, ratio);
+  var kdScaled = scaleKenh(kd, ratio);
+
+  renderKPI(sdScaled);
+  renderSaleTable(sdScaled);
+  renderKenhTable(kdScaled);
+
+  // Update chart labels
+  if(window._chart1){
+    var labels = [];
+    for(var i=d1;i<=d2;i++) labels.push((i<10?'0':'')+i+'/05');
+    var slicedAvg  = BASE.avg.slice(d1-1,d2);
+    var slicedHt   = BASE.ht.slice(d1-1,d2);
+    var slicedSlow = BASE.slow.slice(d1-1,d2);
+    var slicedNr   = BASE.noreply.slice(d1-1,d2);
+    window._chart1.data.labels = labels;
+    window._chart1.data.datasets[0].data = slicedAvg;
+    window._chart1.data.datasets[1].data = slicedHt;
+    window._chart1.data.datasets[2].data = slicedSlow;
+    window._chart1.data.datasets[3].data = slicedNr;
+    window._chart1.update();
+  }
+}
+
+
+
+window.addEventListener('DOMContentLoaded',function(){
+  renderKPI(SALES);
+  buildCharts();
+  renderSaleTable(SALES);
+  renderKenhTable(KENH);
+});
+</script>
+</body>
+</html>
